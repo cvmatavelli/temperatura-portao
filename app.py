@@ -9,7 +9,7 @@ app = Flask(__name__)
 # ===============================
 # 🔒 CONFIGURAÇÃO DE SEGURANÇA
 # ===============================
-app.secret_key = "cvm_superseguro"  # troque por algo forte e aleatório
+app.secret_key = "cvm"  # troque por algo forte e aleatório
 LOGIN_PASSWORD = "cvm10@"           # senha de acesso da interface
 
 # ===============================
