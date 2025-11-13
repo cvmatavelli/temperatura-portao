@@ -6,58 +6,6 @@ from collections import deque
 
 app = Flask(__name__)
 
-# ===============================
-# 🔒 CONFIGURAÇÃO DE SEGURANÇA
-# ===============================
-app.secret_key = "cvm"  # troque por algo forte e secreto
-LOGIN_PASSWORD = "cvm10@"  # senha de acesso da interface
-
-# ===============================
-# 🔐 ROTAS DE LOGIN / LOGOUT
-# ===============================
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        senha = request.form.get('senha')
-        if senha == LOGIN_PASSWORD:
-            session['logged_in'] = True
-            return redirect(url_for('home'))
-        else:
-            return render_template_string("""
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
-                    <h2 style="color:red;">Senha incorreta!</h2>
-                    <form method="post">
-                        <input type="password" name="senha" placeholder="Digite a senha" style="padding:10px;margin:5px;font-size:1rem;">
-                        <button type="submit" style="padding:10px 20px;background:#2e7d32;color:white;border:none;border-radius:5px;">Entrar</button>
-                    </form>
-                </div>
-            """)
-    return render_template_string("""
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
-            <h2>🔒 Acesso Restrito</h2>
-            <form method="post">
-                <input type="password" name="senha" placeholder="Digite a senha" style="padding:10px;margin:5px;font-size:1rem;">
-                <button type="submit" style="padding:10px 20px;background:#2e7d32;color:white;border:none;border-radius:5px;">Entrar</button>
-            </form>
-        </div>
-    """)
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-@app.before_request
-def require_login():
-    """Impede acesso às rotas principais sem login"""
-    if request.endpoint not in ('login', 'static') and not session.get('logged_in'):
-        return redirect(url_for('login'))
-
-# ===============================
-# 🚪 RESTANTE DO SEU CÓDIGO ORIGINAL
-# ===============================
-
 # Dados para guardar estado e histórico (últimas 10 temperaturas)
 dados = {
     'temperatura': None,
@@ -108,10 +56,7 @@ def mqtt_loop():
 
 threading.Thread(target=mqtt_loop, daemon=True).start()
 
-# ===============================
-# 🌡️ SEU HTML ORIGINAL
-# ===============================
-
+# Página HTML com template embutido e estilo
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -154,16 +99,10 @@ HTML_TEMPLATE = """
     font-size: 1.8rem;
     margin: 0;
   }
-  .logout {
-    margin-left: auto;
-    color: white;
-    text-decoration: none;
-    background: #c62828;
-    padding: 8px 15px;
-    border-radius: 6px;
+  section {
+    margin-bottom: 40px;
+    text-align: center;
   }
-  .logout:hover { background: #a62020; }
-  section { margin-bottom: 40px; text-align: center; }
   h2 {
     color: #2e7d32;
     margin-bottom: 15px;
@@ -183,8 +122,14 @@ HTML_TEMPLATE = """
     font-size: 1.3rem;
     min-width: 120px;
   }
-  .status.aberto { background: #388e3c; color: white; }
-  .status.fechado { background: #c62828; color: white; }
+  .status.aberto {
+    background: #388e3c;
+    color: white;
+  }
+  .status.fechado {
+    background: #c62828;
+    color: white;
+  }
   .temperatura {
     font-size: 2.5rem;
     margin: 10px 0 5px;
@@ -193,8 +138,13 @@ HTML_TEMPLATE = """
     align-items: center;
     gap: 10px;
   }
-  .temperatura span { font-size: 2.8rem; }
-  .hora { color: #666; margin-bottom: 20px; }
+  .temperatura span {
+    font-size: 2.8rem;
+  }
+  .hora {
+    color: #666;
+    margin-bottom: 20px;
+  }
   table {
     width: 100%;
     border-collapse: collapse;
@@ -206,7 +156,9 @@ HTML_TEMPLATE = """
     text-align: center;
     font-size: 1rem;
   }
-  th { background-color: #f2f2f2; }
+  th {
+    background-color: #f2f2f2;
+  }
   button {
     background-color: #2e7d32;
     color: white;
@@ -218,12 +170,29 @@ HTML_TEMPLATE = """
     font-weight: 700;
     transition: background-color 0.3s ease;
   }
-  button:hover { background-color: #276527; }
+  button:hover {
+    background-color: #276527;
+  }
   footer {
     text-align: center;
     margin-top: 30px;
     font-size: 0.9rem;
     color: #aaa;
+  }
+  @media (max-width: 480px) {
+    #container {
+      padding: 25px 20px;
+    }
+    header h1 {
+      font-size: 1.4rem;
+    }
+    .temperatura {
+      font-size: 2rem;
+    }
+    button {
+      width: 100%;
+      padding: 15px 0;
+    }
   }
 </style>
 </head>
@@ -232,7 +201,6 @@ HTML_TEMPLATE = """
     <header>
       <img src="https://via.placeholder.com/50" alt="Logo Clínica" />
       <h1>Centro Veterinário Matavelli</h1>
-      <a href="{{ url_for('logout') }}" class="logout">Sair</a>
     </header>
     
     <section id="controle-portao">
@@ -259,37 +227,17 @@ HTML_TEMPLATE = """
         <div class="temperatura">
           <span>🌡️</span> {{ "%.2f"|format(temperatura) }} °C
         </div>
-        <div class="hora">Última atualização: {{ hora }}</div>
-      {% else %}
-        <p>Temperatura indisponível</p>
-      {% endif %}
-      <h3>Histórico das Últimas 10 Temperaturas</h3>
-      {% if historico %}
-        <table>
-          <thead>
-            <tr><th>Temperatura (°C)</th><th>Hora</th></tr>
-          </thead>
-          <tbody>
-            {% for item in historico %}
-              <tr>
-                <td>{{ "%.2f"|format(item.temperatura) }}</td>
-                <td>{{ item.hora }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p>Nenhum dado disponível</p>
-      {% endif %}
-    </section>
-    
-    <footer>
-      &copy; 2025 Centro Veterinário Matavelli
-    </footer>
-  </div>
-</body>
-</html>
-"""
+    """)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+# ==========================
+#    INTERFACE PRINCIPAL
+# ==========================
+HTML_TEMPLATE = """ (seu HTML completo aqui, igual ao atual) """
 
 @app.route('/')
 def home():
@@ -306,7 +254,17 @@ def toggle_portao():
         print("Comando toggle enviado ao MQTT")
     else:
         print("MQTT não conectado - comando não enviado")
+    # Atualizar status localmente para resposta rápida ao usuário:
+    if dados['status_portao']:
+        if dados['status_portao'].lower() == 'aberto':
+            dados['status_portao'] = 'Fechado'
+        else:
+            dados['status_portao'] = 'Aberto'
+    else:
+        dados['status_portao'] = 'Aberto'  # padrão caso status seja desconhecido
+
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+
